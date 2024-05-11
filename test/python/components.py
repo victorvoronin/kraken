@@ -14,15 +14,18 @@
 from __future__ import absolute_import
 
 import os
+import ssl
 import platform
 import random
+import string
 import subprocess
 import time
 import urllib
+import urllib.parse
 from contextlib import contextmanager
 from io import BytesIO
 from os.path import abspath
-from Queue import Queue
+from queue import Queue
 from socket import socket
 from threading import Thread
 
@@ -52,10 +55,10 @@ def print_logs(container):
     title = ' {name} logs '.format(name=container.name)
     left_border = '<' * 20
     right_border = '>' * 20
-    fill = ('<' * (len(title) / 2)) + ('>' * (len(title) / 2))
-    print '{l}{title}{r}'.format(l=left_border, title=title, r=right_border)
-    print container.logs()
-    print '{l}{fill}{r}'.format(l=left_border, fill=fill, r=right_border)
+    fill = ('<' * (len(title) // 2)) + ('>' * (len(title) // 2))
+    print('{l}{title}{r}'.format(l=left_border, title=title, r=right_border))
+    print(container.logs())
+    print('{l}{fill}{r}'.format(l=left_border, fill=fill, r=right_border))
 
 
 def yaml_list(l):
@@ -68,7 +71,15 @@ def pull(source, image):
     ]
     assert subprocess.call(cmd, stderr=subprocess.STDOUT) == 0
 
+class SslOldHttpAdapter(requests.adapters.HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, block=False):
+        ctx = ssl.create_default_context()
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
 
+        self.poolmanager = urllib3.poolmanager.PoolManager(
+            ssl_version=ssl.PROTOCOL_TLS,
+            ssl_context=ctx)
+        
 class HealthCheck(object):
 
     def __init__(self, cmd, interval=1, min_consecutive_successes=1, timeout=10):
@@ -110,12 +121,12 @@ class DockerContainer(object):
 
         self.ports = []
         if ports:
-            for i, o in ports.iteritems():
+            for i, o in iter(ports.items()):
                 self.ports.extend(['-p', '{o}:{i}'.format(i=i, o=o)])
 
         self.volumes = []
         if volumes:
-            for o, i in volumes.iteritems():
+            for o, i in iter(volumes.items()):
                 bind = i['bind']
                 mode = i['mode']
                 self.volumes.extend(['-v', '{o}:{bind}:{mode}'.format(o=o, bind=bind, mode=mode)])
@@ -156,7 +167,7 @@ def new_docker_container(name, image, command=None, environment=None, ports=None
     """
     if command:
         # Set umask so jenkins user can delete files created by non-jenkins user.
-        command = ['bash', '-c', 'umask 0000 && {command}'.format(command=' '.join(command))]
+        command = ['bash', '-c', 'umask 0000 && {command} && rm -rf /var/cache/kraken/kraken-{name}'.format(command=' '.join(command),name=name)]
 
     c = DockerContainer(
         name=name,
@@ -166,12 +177,12 @@ def new_docker_container(name, image, command=None, environment=None, ports=None
         volumes=volumes,
         user=user)
     c.run()
-    print 'Starting container {}'.format(c.name)
+    print('Starting container {}'.format(c.name))
     try:
         if health_check:
             health_check.run(c)
         else:
-            print 'No health checks supplied for {name}'.format(name=c.name)
+            print('No health checks supplied for {name}'.format(name=c.name))
     except:
         print_logs(c)
         raise
@@ -197,11 +208,12 @@ def init_cache(cname):
     """
     Wipes and initializes a cache dir for container name `cname`.
     """
-    cache = abspath('.tmptest/test-kraken-integration/{cname}/cache'.format(cname=cname))
+    random_payload = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    cache = abspath('.tmptest/{random}/test-kraken-integration/{cname}/cache'.format(random=random_payload, cname=cname))
     if os.path.exists(cache):
         subprocess.check_call(['rm', '-rf', cache])
     os.makedirs(cache)
-    os.chmod(cache, 0777)
+    os.chmod(cache, 0o0777)
     return cache
 
 
@@ -268,9 +280,10 @@ class Component(object):
     def teardown(self):
         try:
             self.print_logs()
+            print('Tearing down {name} ...'.format(name=self.container.name))
             self.stop()
         except Exception as e:
-            print 'Teardown {name} failed: {e}'.format(name=self.container.name, e=e)
+            print('Teardown {name} failed: {e}'.format(name=self.container.name, e=e))
 
 
 class Tracker(Component):
@@ -378,6 +391,8 @@ class OriginCluster(object):
     def get_location(self, name):
         url = 'https://localhost:{port}/blobs/sha256:{name}/locations'.format(
             port=random.choice(self.origins).instance.port, name=name)
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
+        
         res = requests.get(url, **tls_opts())
         res.raise_for_status()
         addr = random.choice(res.headers['Origin-Locations'].split(','))
@@ -462,6 +477,7 @@ class Agent(Component):
             port=self.port, name=name)
         s = requests.session()
         s.keep_alive = False
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = s.get(url, stream=True, timeout=60)
         res.raise_for_status()
         assert res.content == expected
@@ -471,9 +487,10 @@ class Agent(Component):
 
     def preload(self, image):
         url = 'http://127.0.0.1:{port}/preload/tags/{image}'.format(
-            port=self.port, image=urllib.quote(image, safe=''))
+            port=self.port, image=urllib.parse.quote(image, safe=''))
         s = requests.session()
         s.keep_alive = False
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = s.get(url, stream=True, timeout=60)
         res.raise_for_status()
 
@@ -555,12 +572,14 @@ class Proxy(Component):
 
     def list(self, repo):
         url = 'http://{reg}/v2/{repo}/tags/list'.format(reg=self.registry, repo=repo)
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = requests.get(url)
         res.raise_for_status()
         return res.json()['tags']
 
     def catalog(self):
         url = 'http://{reg}/v2/_catalog'.format(reg=self.registry)
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = requests.get(url)
         res.raise_for_status()
         return res.json()['repositories']
@@ -635,7 +654,8 @@ class BuildIndex(Component):
     def list_repo(self, repo):
         url = 'https://localhost:{port}/repositories/{repo}/tags'.format(
                 port=self.port,
-                repo=urllib.quote(repo, safe=''))
+                repo=urllib.parse.quote(repo, safe=''))
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = requests.get(url, **tls_opts())
         res.raise_for_status()
         return res.json()['result']
@@ -661,6 +681,7 @@ class TestFS(Component):
 
     def upload(self, name, blob):
         url = 'http://localhost:{port}/files/blobs/{name}'.format(port=self.port, name=name)
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = requests.post(url, data=BytesIO(blob))
         res.raise_for_status()
 

@@ -102,5 +102,5 @@ def tls_opts_with_client_certs():
 
 
 def dev_tag(image_name):
-    tag = os.getenv("PACKAGE_VERSION", "latest")
+    tag = os.getenv("PACKAGE_VERSION", "dev")
     return "{}:{}".format(image_name, tag)

@@ -90,7 +90,8 @@ docker_stop:
 	-docker ps -a --format '{{.Names}}' | grep kraken | while read n; do docker rm -f $$n; done
 
 venv: requirements-tests.txt
-	virtualenv --python=$(shell which python2) --setuptools venv
+	#virtualenv --python=$(shell which python2) --setuptools venv
+	python3 -m venv venv
 	source venv/bin/activate
 	venv/bin/pip install -r requirements-tests.txt
 
@@ -109,10 +110,17 @@ integration: venv $(LINUX_BINS) docker_stop tools/bin/puller/puller
 	PACKAGE_VERSION=$(PACKAGE_VERSION) venv/bin/py.test --timeout=120 -v -k $(NAME) test/python/$(FILE)
 
 .PHONY: runtest
+PACKAGE_VERSION ?= $(shell git describe --always --tags)
 NAME?=test_
 runtest: venv docker_stop
 	source venv/bin/activate
 	venv/bin/py.test --timeout=120 -v -k $(NAME) test/python
+
+.PHONY: singletest
+PACKAGE_VERSION ?= $(shell git describe --always --tags)
+singletest: venv docker_stop
+	source venv/bin/activate
+	venv/bin/py.test --timeout=120 -v -k test_blob_distribution_resilient_to_remote_backend_unavailability test/python
 
 .PHONY: devcluster
 devcluster: $(LINUX_BINS) docker_stop images

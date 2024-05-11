@@ -5,9 +5,9 @@ FROM debian:10
 RUN apt-get update && apt-get install -y build-essential curl sqlite3 nginx sudo procps
 
 # Install redis.
-ADD http://download.redis.io/redis-stable.tar.gz /tmp/redis-stable.tar.gz
+ADD https://github.com/redis/redis/archive/refs/tags/7.2.4.tar.gz /tmp/redis-stable.tar.gz
 RUN tar -xvzf /tmp/redis-stable.tar.gz -C /tmp
-RUN cd /tmp/redis-stable && make install
+RUN cd /tmp/redis-7.2.4 && make install
 
 RUN mkdir -p -m 777 /var/log/kraken/kraken-build-index
 RUN mkdir -p -m 777 /var/log/kraken/kraken-origin

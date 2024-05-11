@@ -123,7 +123,7 @@ def one_way_replicas():
     dst_build_index_instances = _create_build_index_instances()
 
     replicas = Replicas(
-        src=Cluster('src', src_build_index_instances, [dst_build_index_instances.values()[0]]),
+        src=Cluster('src', src_build_index_instances, [list(dst_build_index_instances.values())[0]]),
         dst=Cluster('dst', dst_build_index_instances))
 
     yield replicas

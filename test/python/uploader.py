@@ -14,6 +14,7 @@
 from __future__ import absolute_import
 
 import requests
+import urllib3
 
 from utils import tls_opts_with_client_certs
 
@@ -26,6 +27,10 @@ class Uploader(object):
     def _start(self, name):
         url = 'https://{addr}/namespace/testfs/blobs/sha256:{name}/uploads'.format(
             addr=self.addr, name=name)
+#        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        requests.packages.urllib3.disable_warnings(
+    requests.packages.urllib3.exceptions.InsecureRequestWarning)
+        
         res = requests.post(url, **tls_opts_with_client_certs())
         res.raise_for_status()
         return res.headers['Location']
@@ -39,6 +44,7 @@ class Uploader(object):
     def _commit(self, name, uid):
         url = 'https://{addr}/namespace/testfs/blobs/sha256:{name}/uploads/{uid}'.format(
             addr=self.addr, name=name, uid=uid)
+        requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=1'
         res = requests.put(url, **tls_opts_with_client_certs())
         res.raise_for_status()
 
