@@ -7,6 +7,7 @@
 <a href="https://godoc.org/github.com/uber/kraken"><img src="https://godoc.org/github.com/uber/kraken?status.svg"></a>
 <a href="https://goreportcard.com/badge/github.com/uber/kraken"><img src="https://goreportcard.com/badge/github.com/uber/kraken"></a>
 <a href="https://codecov.io/gh/uber/kraken"><img src="https://codecov.io/gh/uber/kraken/branch/master/graph/badge.svg"></a>
+<a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fvictorvoronin%2Fkraken?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvictorvoronin%2Fkraken.svg?type=shield"/></a>
 </p>
 
 Kraken is a P2P-powered Docker registry that focuses on scalability and availability. It is
@@ -192,3 +193,7 @@ Please check out our [guide](docs/CONTRIBUTING.md).
 # Contact
 
 To contact us, please join our [Slack channel](https://join.slack.com/t/uber-container-tools/shared_invite/enQtNTIxODAwMDEzNjM1LWIwYzIxNmUwOGY3MmVmM2MxYTczOTQ4ZDU0YjAxMTA0NDgyNzdlZTA4ZWVkZGNlMDUzZDA1ZTJiZTQ4ZDY0YTM).
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvictorvoronin%2Fkraken.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvictorvoronin%2Fkraken?ref=badge_large)
